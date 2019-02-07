@@ -1,12 +1,14 @@
 """Dodo file for analysing the Serlo history."""
 
-from itertools import count
+import itertools
+import datetime
 
 import requests
 
+from doit.tools import timeout
 from pyquery import PyQuery
 
-TIMEOUT = 30*60
+DOIT_TIMEOUT = datetime.timedelta(minutes=60)
 
 def get_history_page(page_number):
     """Returns the page `<page_number>` of the Serlo history as a
@@ -24,22 +26,28 @@ def get_history_page(page_number):
 
     return PyQuery(req.text)
 
-def get_max_page_number():
+def get_history_max_page_number():
     """Returns the maximal page number of the Serlo history."""
 
     # Go through exponentially increasing pages of the Serlo history
-    for page_number_exp in count(11):
+    for page_number_exp in itertools.count(11):
         page_number = 2**page_number_exp
         page = get_history_page(page_number)
 
         # Parse the value "Seite XY" in the page header
-        nr_in_page = page("div.page-header > h1 > small").text()
-        nr_in_page = int(nr_in_page.lstrip("Seite "))
+        number_in_page = int(page("div.page-header > h1 > small").text()\
+                             .lstrip("Seite "))
 
         # If the parsed page number is smaller than the page number used as a
         # parameter in the HTTP request, then this page number is the currently
         # maximal page number
-        if nr_in_page < page_number:
-            return nr_in_page
+        if number_in_page < page_number:
+            return {"history_max_page_number": number_in_page}
 
     raise ValueError("Maximal page number not found.")
+
+def task_history_max_page_number():
+    """Creates a task for computing the maximal page number of the Serlo
+    history."""
+    return {"actions": (get_history_max_page_number,),
+            "uptodate": [timeout(DOIT_TIMEOUT)]}
