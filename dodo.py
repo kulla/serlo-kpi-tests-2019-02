@@ -29,8 +29,10 @@ def get_history_page(page_number):
 def get_history_max_page_number():
     """Returns the maximal page number of the Serlo history."""
 
-    # Go through exponentially increasing pages of the Serlo history
+    # Go through pages of the Serlo history with exponentially increased page
+    # number
     for page_number_exp in itertools.count(11):
+        # Load Serlo history page
         page_number = 2**page_number_exp
         page = get_history_page(page_number)
 
@@ -38,12 +40,12 @@ def get_history_max_page_number():
         number_in_page = int(page("div.page-header > h1 > small").text()\
                              .lstrip("Seite "))
 
-        # If the parsed page number is smaller than the page number used as a
-        # parameter in the HTTP request, then this page number is the currently
-        # maximal page number
+        # If the parsed page number is smaller than the requested page number,
+        # then the paresed page number is the maximal page number
         if number_in_page < page_number:
             return {"history_max_page_number": number_in_page}
 
+    # This command shall not be reachable
     raise ValueError("Maximal page number not found.")
 
 def task_history_max_page_number():
