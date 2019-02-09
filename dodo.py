@@ -8,7 +8,7 @@ import requests
 from doit.tools import timeout
 from pyquery import PyQuery
 
-DOIT_TIMEOUT = datetime.timedelta(minutes=60)
+DOIT_TIMEOUT = timeout(datetime.timedelta(minutes=60))
 
 def get_history_page(page_number):
     """Returns the page `<page_number>` of the Serlo history as a
@@ -52,4 +52,4 @@ def task_history_max_page_number():
     """Creates a task for computing the maximal page number of the Serlo
     history."""
     return {"actions": (get_history_max_page_number,),
-            "uptodate": [timeout(DOIT_TIMEOUT)]}
+            "uptodate": [DOIT_TIMEOUT]}
