@@ -10,6 +10,8 @@ from pyquery import PyQuery
 
 DOIT_TIMEOUT = timeout(datetime.timedelta(minutes=60))
 
+HISTORY_EVENTS_PER_PAGE = 100
+
 def get_history_page(page_number):
     """Returns the page `<page_number>` of the Serlo history as a
     PyQuery object. This function raises an exception iff the HTTP response
@@ -26,11 +28,17 @@ def get_history_page(page_number):
 
     return PyQuery(req.text)
 
-def get_history_max_page_number():
-    """Returns the maximal page number of the Serlo history."""
+def get_history_information():
+    """Query information about the the Serlo history. It returns a dictionary
+    containing the follwing information:
+        
+        last_page_number - Number of the last page
+        last_page_events - Number of events on the last page
+        events_length    - Total number of events
+    """
 
     # Go through pages of the Serlo history with exponentially increased page
-    # number
+    # number in order to find the last page
     for page_number_exp in itertools.count(11):
         # Load Serlo history page
         page_number = 2**page_number_exp
@@ -43,13 +51,20 @@ def get_history_max_page_number():
         # If the parsed page number is smaller than the requested page number,
         # then the paresed page number is the maximal page number
         if number_in_page < page_number:
-            return {"history_max_page_number": number_in_page}
+            # Calculate information about the Serlo history
+            last_page_number = number_in_page
+            last_page_events_length = len(page("#content-layout > ul > li"))
+            events_length = (last_page_number - 1) * HISTORY_EVENTS_PER_PAGE \
+                                + last_page_events_length
+
+            return {"last_page_number": last_page_number,
+                    "last_page_events": last_page_events_length,
+                    "events_length": events_length}
 
     # This command shall not be reachable
     raise ValueError("Maximal page number not found.")
 
-def task_history_max_page_number():
-    """Creates a task for computing the maximal page number of the Serlo
-    history."""
-    return {"actions": (get_history_max_page_number,),
+def task_history_information():
+    """Creates a task for querying information about the Serlo history."""
+    return {"actions": (get_history_information,),
             "uptodate": [DOIT_TIMEOUT]}
