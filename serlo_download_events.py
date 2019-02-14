@@ -1,11 +1,50 @@
 """Downloads / Updates all events and saves them in `serlo_events.csv`."""
 
+import os
 import itertools
+import json
+import time
+
 import requests
 
 from pyquery import PyQuery
 
+TIMEOUT = 60*60
 HISTORY_EVENTS_PER_PAGE = 100
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
+
+
+def cache(cache_file_func):
+    """Decorator for a function so that its results are getting cached in a
+    JSON file. The content of the cached JSON is returned, when it is not
+    older then `TIMEOUT`. The function `cache_file_func` returns the path
+    to the file where the result shall be stored, when the function's arguments
+    are passed to it. In case the cache file does not exist or is older than
+    `TIMEOUT` the actual function is called and its result is returned after it
+    was stored in the cache."""
+    def cache_decorator(func):
+        def cached_function(*args, **kwargs):
+            cached_file = os.path.join(CACHE_DIR,
+                                       cache_file_func(*args, **kwargs))
+
+            if (os.path.exists(cached_file) and
+                    time.time() - os.path.getmtime(cached_file) < TIMEOUT):
+                with open(cached_file, "r") as cached_file_fd:
+                    return json.load(cached_file_fd)
+            else:
+                result = func(*args, **kwargs)
+
+                os.makedirs(os.path.dirname(cached_file), exist_ok=True)
+
+                with open(cached_file, "w") as cached_file_fd:
+                    json.dump(result, cached_file_fd)
+
+                return result
+
+        return cached_function
+    return cache_decorator
 
 
 def get_history_page(page_number):
@@ -24,6 +63,7 @@ def get_history_page(page_number):
     return req.text
 
 
+@cache(lambda: os.path.join(CACHE_DIR, "history_information.json"))
 def get_history_information():
     """Query information about the the Serlo history. It returns a dictionary
     containing the follwing information:
