@@ -5,11 +5,15 @@ import itertools
 import json
 import time
 
+from math import ceil, log10
+
 import requests
 
 from pyquery import PyQuery
 
 TIMEOUT = 60*60
+MAX_EVENTS = 1000000
+MAX_FILES_PER_DIRECTORY = 100
 HISTORY_EVENTS_PER_PAGE = 100
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -47,6 +51,24 @@ def cache(cache_file_func):
     return cache_decorator
 
 
+def cache_history_page(page_number):
+    """Returns the path to the file where the history page with the page
+    number `page_number` shall be cached."""
+    max_file_number = MAX_EVENTS / HISTORY_EVENTS_PER_PAGE
+    max_dir_number = max_file_number / MAX_FILES_PER_DIRECTORY
+
+    file_number_width = ceil(log10(max_file_number))
+    dir_number_width = ceil(log10(max_dir_number))
+
+    file_number = str(page_number).zfill(file_number_width)
+    dir_number = int(page_number / MAX_FILES_PER_DIRECTORY)
+    dir_number = str(dir_number).zfill(dir_number_width)
+
+    return os.path.join(CACHE_DIR, "pages", dir_number,
+                        "serlo-history-page" + file_number + ".html.json")
+
+
+@cache(cache_history_page)
 def get_history_page(page_number):
     """Returns the page `<page_number>` of the Serlo history. This function
     raises an exception iff the HTTP response status is not 200."""
