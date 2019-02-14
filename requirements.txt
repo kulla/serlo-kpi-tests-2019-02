@@ -1,3 +1,2 @@
-doit == 0.31.1
 requests == 2.21.0
 pyquery == 1.4.0
