@@ -1,12 +1,15 @@
 """Downloads / Updates all events and saves them in `serlo_events.csv`."""
 
-import os
 import itertools
 import json
+import hashlib
+import os
 import time
 
 from math import ceil, log10
 
+import lxml
+import plyvel
 import requests
 
 from pyquery import PyQuery
@@ -18,6 +21,7 @@ HISTORY_EVENTS_PER_PAGE = 100
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
+EVENTS_DB = os.path.join(BASE_DIR, "events.leveldb.db")
 
 
 def cache(cache_file_func):
@@ -123,9 +127,41 @@ def get_history_information():
     raise ValueError("Maximal page number not found.")
 
 
+def sha1(text_bytes):
+    """Returns the SHA256 hash of `text`."""
+    sha1_hash = hashlib.sha1()
+    sha1_hash.update(text_bytes)
+
+    return sha1_hash.hexdigest()
+
+
 def run_script():
-    """Runs this script."""
-    print(get_history_information())
+    """Download Serlo history events into a database."""
+    event_db = plyvel.DB(EVENTS_DB, create_if_missing=True)
+
+    for page_number in itertools.count(1):
+        page = PyQuery(get_history_page(page_number))
+
+        batch = event_db.write_batch()
+
+        for event_html in page("#content-layout > ul").children():
+            event = lxml.etree.tostring(event_html)
+            key = "events-html-" + sha1(event)
+
+            batch.put(str.encode(key), event)
+
+        batch.write()
+
+        print("Done: %4d" % page_number)
+
+        # Parse the value "Seite XY" in the page header
+        number_in_page = int(page("div.page-header > h1 > small").text()
+                             .lstrip("Seite "))
+
+        if number_in_page < page_number:
+            break
+
+    event_db.close()
 
 
 if __name__ == "__main__":
