@@ -14,7 +14,7 @@ import requests
 
 from pyquery import PyQuery
 
-TIMEOUT = 60*60
+TIMEOUT = 60*60*4
 MAX_EVENTS = 1000000
 MAX_FILES_PER_DIRECTORY = 100
 HISTORY_EVENTS_PER_PAGE = 100
@@ -140,7 +140,10 @@ def run_script():
     event_db = plyvel.DB(EVENTS_DB, create_if_missing=True)
 
     for page_number in itertools.count(1):
-        page = PyQuery(get_history_page(page_number))
+        try:
+            page = PyQuery(get_history_page(page_number))
+        except AttributeError:
+            continue
 
         batch = event_db.write_batch()
 
